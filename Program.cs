@@ -24,6 +24,7 @@ namespace NF_test_app_2022
 
             led.Write(PinValue.Low);
 
+
             while (true)
             {
                 led.Toggle();
