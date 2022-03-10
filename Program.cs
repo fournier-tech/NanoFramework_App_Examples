@@ -30,11 +30,11 @@ namespace NF_test_app_2022
                 led.Toggle();
                 Thread.Sleep(125);
                 led.Toggle();
-                Thread.Sleep(125);
+                Thread.Sleep(225);
                 led.Toggle();
-                Thread.Sleep(125);
+                Thread.Sleep(325);
                 led.Toggle();
-                Thread.Sleep(525);
+                Thread.Sleep(425);
             }
 
             //Thread.Sleep(Timeout.Infinite);
