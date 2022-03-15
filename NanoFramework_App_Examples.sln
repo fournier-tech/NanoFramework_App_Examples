@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32228.430
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{11A8DD76-328B-46DF-9F39-F559912D0360}") = "NF_test_app_2022", "NF_test_app_2022.nfproj", "{1D986E6C-AE37-40D8-B3B9-518C58CD5A76}"
+Project("{11A8DD76-328B-46DF-9F39-F559912D0360}") = "NanoFramework_App_Examples", "NanoFramework_App_Examples.nfproj", "{1D986E6C-AE37-40D8-B3B9-518C58CD5A76}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
