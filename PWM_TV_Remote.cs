@@ -1,10 +1,9 @@
 ﻿//using System;
+//using System.Diagnostics;
+using nanoFramework.Hardware.Esp32;
 using System.Device.Gpio;
 using System.Device.Pwm;
 using System.IO.Ports;
-//using System.Diagnostics;
-using System.Threading;
-using nanoFramework.Hardware.Esp32;
 
 namespace NanoFramework_App_Examples
 {
@@ -14,7 +13,7 @@ namespace NanoFramework_App_Examples
         //nanoFramework.Hardware.Esp32.Rmt
         //Remote Control Peripheral RMT - designed to work with IR remote carrier signals
 
-        private static GpioController s_GpioController = new();
+        private static readonly GpioController s_GpioController = new();
         private static GpioPin power, volumeUp, volumeDown;
         private static PwmChannel pwmPin;
         SerialPort serialPort;

@@ -1,7 +1,7 @@
 ﻿//using System;
+using nanoFramework.Hardware.Esp32;
 using System.Device.Gpio;
 using System.Threading;
-using nanoFramework.Hardware.Esp32;
 
 namespace NanoFramework_App_Examples
 {

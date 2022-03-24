@@ -1,5 +1,5 @@
-﻿using System.Device.Pwm;
-using nanoFramework.Hardware.Esp32;
+﻿using nanoFramework.Hardware.Esp32;
+using System.Device.Pwm;
 
 namespace NanoFramework_App_Examples
 {
@@ -19,14 +19,14 @@ namespace NanoFramework_App_Examples
             {
                 while (dutyCycle < 1.0)
                 {
-                    pwmPin = PwmChannel.CreateFromPin(Gpio.IO02, 10000, dutyCycle);
+                    //pwmPin = PwmChannel.CreateFromPin(Gpio.IO02, 10000, dutyCycle);
                     dutyCycle += 0.0005;
                 }
                 dutyCycle = 1.0;
 
                 while (dutyCycle > 0.0)
                 {
-                    pwmPin = PwmChannel.CreateFromPin(Gpio.IO02, 10000, dutyCycle);
+                    //pwmPin = PwmChannel.CreateFromPin(Gpio.IO02, 10000, dutyCycle);
                     dutyCycle -= 0.0005;
                 }
                 dutyCycle = 0.0;
