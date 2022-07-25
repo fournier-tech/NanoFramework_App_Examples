@@ -6,8 +6,6 @@ namespace NanoFramework_App_Examples
         {
             Television_IR_Remote tvRemote = new();
             tvRemote.RmtConfiguration();
-            //PWM_TV_Remote pWM_TV_Remote = new();
-            //pWM_TV_Remote.RemoteOperation();
         }
     }
 }

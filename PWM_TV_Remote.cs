@@ -1,6 +1,4 @@
-﻿//using System;
-//using System.Diagnostics;
-using nanoFramework.Hardware.Esp32;
+﻿using nanoFramework.Hardware.Esp32;
 using System.Device.Gpio;
 using System.Device.Pwm;
 using System.IO.Ports;

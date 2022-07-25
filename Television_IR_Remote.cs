@@ -1,31 +1,32 @@
-﻿using System;
-using nanoFramework.Hardware.Esp32;
+﻿using nanoFramework.Hardware.Esp32;
 using nanoFramework.Hardware.Esp32.Rmt;
-//using nanoFramework.Runtime.Native;
 using System.Device.Gpio;
 
 namespace NanoFramework_App_Examples
 {
-    internal class Television_IR_Remote //: IDisposable
+    internal class Television_IR_Remote
     {
         //***** nanoFramework.Hardware.Esp32.Rmt == four classes *****
-        //RmtChannel -- not instantiated, but inherited by TransmitterChannel
+        //***** nanoFramework.Hardware.Esp32 == five classes *****
+
         RmtCommand rmtCommand;
-        //ReceiverChannel -- not used in this project
         TransmitterChannel transChannel;
 
-        //***** nanoFramework.Hardware.Esp32 == five classes *****
-        //Gpio -- static
-        //Configuration -- used to set / get special pin function for communication
-        HighResTimer hrTimer = new();
+        //***** 32 bit address code / command code *****
+        //
+        //power       == 00011100 11100011 01001000 10110111
+        //            == 0x1C     E3       48       B7
+        //volume up   == 00011100 11100011 01110000 10001111
+        //            == 0x1C     E3       70       8F
+        //volume down == 00011100 11100011 11110000 00001111
+        //            == 0x1C     E3       F0       0F
+        int[] buttonCode = new int[] { 0x1CE348B7, 0x1CE3708F, 0x1CE3F00F };
+        int buttonCodeBuffer;
         ulong timeDelay;
-
-        //NativeMemory -- used for Spi comminucation 
-        //Sleep sleep;
 
         //***** setup for button numbering scheme, either logical or board
         //numbering system *****
-        private GpioController gpioController = new(PinNumberingScheme.Board);
+        GpioController gpioController = new(PinNumberingScheme.Board);
 
         //***** fields to declare ESP32 board IO pins ***** 
         GpioPin powerButton;
@@ -33,13 +34,100 @@ namespace NanoFramework_App_Examples
         GpioPin volumeDownButton;
         GpioPin signalOut;
 
+        //***** required fields to instanciate the RmtCommand class *****
         ushort duration0;
         bool level0;
         ushort duration1;
         bool level1;
-        int buttonCodeBuffer;
 
         public void RmtConfiguration()
+        {
+            ConfigurePins();
+            ConfigureTransmitter();
+            
+            while (true)
+            {
+                HighResTimer contRepeatHighResTimer = new();
+                if (powerButton.Read() != 1 && volumeUpButton.Read() == 1 && volumeDownButton.Read() == 1)
+                {
+                    buttonCodeBuffer = buttonCode[0];
+                    RmtOperation();
+                    timeDelay = 1000000000;
+                    contRepeatHighResTimer.StartOneShot(timeDelay);
+                    //ConfigureTransmitter();
+                }
+                else if (volumeUpButton.Read() != 1 && powerButton.Read() == 1 && volumeDownButton.Read() == 1)
+                {
+                    buttonCodeBuffer = buttonCode[1];
+                    RmtOperation();
+                    timeDelay = 1000000000;
+                    contRepeatHighResTimer.StartOneShot(timeDelay);
+                    //ConfigureTransmitter();
+                }
+                else if (volumeDownButton.Read() != 1 && powerButton.Read() == 1 && volumeUpButton.Read() == 1)
+                {
+                    buttonCodeBuffer = buttonCode[2];
+                    RmtOperation();
+                    timeDelay = 1000000000;
+                    contRepeatHighResTimer.StartOneShot(timeDelay);
+                    //ConfigureTransmitter();
+                }
+                
+                //int test = transChannel[a]
+                contRepeatHighResTimer.Dispose();
+                //if (transChannel.Channel. >= 500) { 
+                //}
+            }
+        }
+        public void ConfigurePins()
+        {
+            //***** configure pin mode for inputs(buttons) *****
+            powerButton = gpioController.OpenPin(Gpio.IO36, PinMode.InputPullUp);
+            volumeUpButton = gpioController.OpenPin(Gpio.IO35, PinMode.InputPullUp);
+            volumeDownButton = gpioController.OpenPin(Gpio.IO34, PinMode.InputPullUp);
+            signalOut = gpioController.OpenPin(Gpio.IO04, PinMode.Output);
+            //signalOut.Write(false);
+        }
+        public void RmtOperation()
+        {
+            BeginCode();
+            FunctionCode();
+
+            //***** if a button is still depressed a single RepeatCode() function call is sent *****
+            //***** the first repeat code is 108mS from lead edge of BeginCode()
+            //***** all remaining repeat codes are a 108mS from the lead edge of the prior repeat code
+            if (powerButton.Read() != 1 || volumeUpButton.Read() != 1 || volumeDownButton.Read() != 1)
+            {
+                for (int i = 0; i < 72; i++)
+                {
+                    //72 * 562.5uS = 40500uS == 40.500mS
+                    duration0 = 0;
+                    level0 = true;
+                    duration1 = 562;
+                    level1 = false;
+
+                    rmtCommand = new(duration0, level0, duration1, level1);
+                    transChannel.AddCommand(rmtCommand);
+                }
+                RepeatCode();
+            }
+            while (powerButton.Read() != 1 || volumeUpButton.Read() != 1 || volumeDownButton.Read() != 1)
+            {
+                for (int i = 0; i < 171; i++)
+                {
+                    //171 * 562.5uS = 96187uS == 96.187mS
+                    duration0 = 0;
+                    level0 = true;
+                    duration1 = 562;
+                    level1 = false;
+
+                    rmtCommand = new(duration0, level0, duration1, level1);
+                    transChannel.AddCommand(rmtCommand);
+                }
+                RepeatCode();
+            }
+        }
+        public void ConfigureTransmitter()
         {
             //*****  Setup for the TransmitterChannel *****
             //  The clock source is 80MHz -- ClockDivider(80) == 1MHz clock
@@ -50,68 +138,35 @@ namespace NanoFramework_App_Examples
             //  cycles for a low signal.
             //  CarrierLevel == for a high output(true -- low on one high on zero)
             //  or low output(false -- high on one low on zero) frequency.
-            signalOut = gpioController.OpenPin(Gpio.IO04, PinMode.Output);
+
             transChannel = new TransmitterChannel(signalOut.PinNumber)
             {
                 SourceClock = SourceClock.APB,
                 ClockDivider = 80,
                 CarrierEnabled = true,
-                IdleLevel = true,
+                IdleLevel = false,
                 IsChannelIdle = true,
-                CarrierHighDuration = 0,
-                CarrierLowDuration = 0,
-                CarrierLevel = false
+                //updating transmitter channel with carrier signal 38.222kHz == 26uS
+                //pulse 50% duty cycle
+                CarrierHighDuration = 13,
+                CarrierLowDuration = 13,
+                CarrierLevel = true
             };
-
-            //***** configure pin mode for inputs(buttons) *****
-            powerButton = gpioController.OpenPin(Gpio.IO36, PinMode.InputPullUp);
-            volumeUpButton = gpioController.OpenPin(Gpio.IO35, PinMode.InputPullUp);
-            volumeDownButton = gpioController.OpenPin(Gpio.IO34, PinMode.InputPullUp);
-
-            //***** 32 bit address code / command code *****
-            //
-            //power       == 00011100 11100011 01001000 10110111
-            //            == 0x1C     E3       48       B7
-            //volume up   == 00011100 11100011 01110000 10001111
-            //            == 0x1C     E3       70       8F
-            //volume down == 00011100 11100011 11110000 00001111
-            //            == 0x1C     E3       F0       0F
-            int[] buttonCode = new int[] { 0x1CE348B7, 0x1CE3708F, 0x1CE3F00F };
-
-            while (true)
-            {
-                if (powerButton.Read() != 1 && volumeUpButton.Read() == 1
-                    && volumeDownButton.Read() == 1)
-                {
-                    buttonCodeBuffer = buttonCode[0];
-                    RmtOperation(buttonCodeBuffer);
-                }
-                else if (volumeUpButton.Read() != 1 && powerButton.Read() == 1
-                    && volumeDownButton.Read() == 1)
-                {
-                    buttonCodeBuffer = buttonCode[1];
-                    RmtOperation(buttonCodeBuffer);
-                }
-                else if (volumeDownButton.Read() != 1 && powerButton.Read() == 1
-                    && volumeUpButton.Read() == 1)
-                {
-                    buttonCodeBuffer = buttonCode[2];
-                    RmtOperation(buttonCodeBuffer);
-                }
-            }
         }
-        public void RmtOperation(int buttonCodeBuffer)
+        public void BeginCode()
         {
-            //updating transmitter channel with carrier signal 38.222kHz == 26uS
-            //pulse 50% duty cycle
-            transChannel.CarrierEnabled = true;
-            transChannel.CarrierHighDuration = 13;
-            transChannel.CarrierLowDuration = 13;
+            //***** Begin signal *****
+            duration0 = 9000;
+            level0 = true;
+            duration1 = 4500;
+            level1 = false;
 
-            BeginCode();
-
+            rmtCommand = new(duration0, level0, duration1, level1);
+            transChannel.AddCommand(rmtCommand);
+        }
+        public void FunctionCode()
+        {
             //***** Iterate through the 32-bit address / button code
-            //  used only 29, because the first three bits of the address are zero and is truncated.
             for (int i = 0; i < 32; i++)
             {
                 //The MSB is logically anded with 1 if the result
@@ -119,101 +174,55 @@ namespace NanoFramework_App_Examples
                 if ((buttonCodeBuffer & 0x80000000) == 0)
                 {
                     //***** binary zero signal *****
-                    duration0 = 562;
-                    level0 = false;
+                    duration0 = 563;
+                    level0 = true;
                     duration1 = 562;
-                    level1 = true;
-                    rmtCommand = new(duration0, level0, duration1, level1);
+                    level1 = false;
 
+                    rmtCommand = new(duration0, level0, duration1, level1);
                     transChannel.AddCommand(rmtCommand);
                 }
                 else
                 {
                     //***** binary one signal *****
-                    duration0 = 562;
-                    level0 = false;
+                    duration0 = 563;
+                    level0 = true;
                     duration1 = 1687;
-                    level1 = true;
-                    rmtCommand = new(duration0, level0, duration1, level1);
+                    level1 = false;
 
+                    rmtCommand = new(duration0, level0, duration1, level1);
                     transChannel.AddCommand(rmtCommand);
                 }
-                //buttonCodeBuffer >>= 1;
                 buttonCodeBuffer <<= 1;
             }
-
-            StopBit();
-
-            //***** if a button is still depressed a single repeat code is sent *****
-            if (powerButton.Read() != 1 || volumeUpButton.Read() != 1 || volumeDownButton.Read() != 1)
-            {
-                timeDelay = 40500;
-
-                hrTimer.StartOneShot(timeDelay);
-                hrTimer.OnHighResTimerExpired += Hrs_OnHighResTimerExpired;
-            }
-            while (powerButton.Read() != 1 || volumeUpButton.Read() != 1 || volumeDownButton.Read() != 1)
-            {
-                timeDelay = 96187;
-                hrTimer.StartOneShot(timeDelay);
-                hrTimer.OnHighResTimerExpired += Hrs_OnHighResTimerExpired;
-            }
-
-
-        }
-
-        private void Hrs_OnHighResTimerExpired(HighResTimer sender, object e)
-        {
-            RepeatCode();
             StopBit();
         }
-        public void BeginCode()
+        public void StopBit()
         {
-
-            //***** Begin signal *****
-            duration0 = 9000;
-            level0 = false;
-            duration1 = 4500;
-            level1 = true;
+            //***** binary zero signal added at the end, as the code stop bit, then message send to receiver *****
+            //duration1 = 562;
+            duration0 = 563;
+            level0 = true;
+            duration1 = 20;
+            level1 = false;
 
             rmtCommand = new(duration0, level0, duration1, level1);
             transChannel.AddCommand(rmtCommand);
+
+            transChannel.Send(true);
         }
         public void RepeatCode()
         {
             //***** Repeat code signal *****
             duration0 = 9000;
-            level0 = false;
+            level0 = true;
             duration1 = 2250;
-            level1 = true;
+            level1 = false;
 
             rmtCommand = new(duration0, level0, duration1, level1);
             transChannel.AddCommand(rmtCommand);
 
-
+            StopBit();
         }
-        public void StopBit()
-        {
-            //***** binary zero signal *****
-            //***** added at the end, as the code stop bit *****
-            duration0 = 562;
-            level0 = false;
-            duration1 = 562;
-            level1 = true;
-
-            rmtCommand = new(duration0, level0, duration1, level1);
-            transChannel.AddCommand(rmtCommand);
-            transChannel.Send(false);
-        }
-        //public void garbargeCleanup()
-        //{
-        //    //GC.Run(GC.Collect());
-        //    nanoFramework.Runtime.Native.GC.Run(true);
-        //}
-
-        //public void Dispose()
-        //{
-        //    throw new NotImplementedException();
-        //}
     }
 }

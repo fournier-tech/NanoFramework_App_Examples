@@ -1,5 +1,4 @@
-﻿//using System;
-using nanoFramework.Hardware.Esp32;
+﻿using nanoFramework.Hardware.Esp32;
 using System.Device.Gpio;
 using System.Threading;
 
@@ -34,15 +33,6 @@ namespace NanoFramework_App_Examples
                 Thread.Sleep(425);
             }
         }
-        //static int PinNumber(char port, byte pin)
-        //{
-        //    if (port < 'A' || port > 'J')
-        //        throw new ArgumentException();
-
-        //    return ((port - 'A') * 16) + pin;
-        //}
-
-
 
         //****** Dev Kit Pinout (#1 location top left count counter-clockwise) ******
         //GPIO = general purpose input/output
